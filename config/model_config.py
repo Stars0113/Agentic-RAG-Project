@@ -2,13 +2,15 @@
 
 # 模型相关配置
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 # 向量模型
 EMBEDDING_MODEL_NAME = "BAAI/bge-large-zh"
 # 重排序模型
 RERANK_MODEL_PATH = "BAAI/bge-reranker-large"
 # 大模型（千问）
-DASHSCOPE_API_KEY = "sk-1c5110ed7c994c248d51c6bd2fb7ccc7"
 LLM_MODEL_NAME = "qwen-turbo"
 LLM_TEMPERATURE = 0.1
 # RRF参数
