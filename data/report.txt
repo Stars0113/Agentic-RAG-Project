@@ -5,7 +5,7 @@
     评估指标：Faithfulness（忠实度）、Context Recall（上下文召回率）
     用户问题：晚上睡觉总喘不上气怎么办
 
-    1. 忠实度（Faithfulness）：0.32  [不合格]
+    1. 忠实度（Faithfulness）：nan  [不合格]
        - 说明：答案存在明显幻觉或严重遗漏，需要优化
 
     2. 上下文召回率（Context Recall）：0.20  [不合格]
