@@ -5,6 +5,9 @@ import time
 from elasticsearch import Elasticsearch
 from config.es_config import ES_HOST, ES_INDEX_NAME, ES_MAPPING, ES_TOP_N
 from config.path_config import KB_FILE_PATH
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 
 def init_es_client():
     """初始化ES连接"""
@@ -24,14 +27,24 @@ def init_es_client():
     es.indices.create(index=ES_INDEX_NAME, body=ES_MAPPING)
     return es
 
-def load_knowledge_base():
-    """加载知识库文档"""
-    with open(KB_FILE_PATH, 'r', encoding='utf-8') as f:
-        file_content = f.read()
-    exec_globals = {}
-    exec(file_content, exec_globals)
-    docs = exec_globals.get('docs',[])
-    return docs
+
+def load_knowledge_base(file_path):
+    """使用 LangChain 加载并分块文档，替代 exec()"""
+    # 根据文件类型选择加载器
+    if file_path.endswith('.pdf'):
+        loader = PyPDFLoader(file_path)
+    else:
+        loader = TextLoader(file_path, encoding='utf-8')
+
+    # 加载文档
+    docs = loader.load()
+
+    # 自动分块（每块 500 字符，重叠 50 字符）
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    chunks = splitter.split_documents(docs)
+
+    # 转换成原来需要的格式：[{"text": chunk}]
+    return [{"text": chunk.page_content} for chunk in chunks]
 
 def insert_docs_to_es(es, docs, embedding_model):
     """将文档+向量插入ES"""

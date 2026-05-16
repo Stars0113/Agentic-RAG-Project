@@ -20,7 +20,7 @@
 
 ## 🏗️ 系统架构流程图
 
-![企业级 Agentic RAG 系统架构图](https://t1.chatglm.cn/file/6a0169bb6bd5e5d2b3b41e7d.png)
+
 
 ## 📁 项目工程化结构
 

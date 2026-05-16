@@ -4,7 +4,7 @@ import os
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 from langchain_huggingface import HuggingFaceEmbeddings
 from config.model_config import EMBEDDING_MODEL_NAME
-from config.path_config import OUTPUT_DIR
+from config.path_config import OUTPUT_DIR, KB_FILE_PATH
 from core.es_client import init_es_client, load_knowledge_base, insert_docs_to_es
 from core.llm_client import init_llm
 from core.retriever import hybrid_retrieve
@@ -19,14 +19,24 @@ _embedding = None
 _llm = None
 
 
-def init_global_components():
+def init_global_components(kb_file_path=None):
+    """初始化全局组件，支持动态加载知识库文件"""
     global _es, _embedding, _llm
+
     # 向量模型
     _embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+
     # ES
     _es = init_es_client()
-    docs = load_knowledge_base()
+
+    # 加载知识库（支持动态路径）
+    if kb_file_path and os.path.exists(kb_file_path):
+        docs = load_knowledge_base(kb_file_path)
+    else:
+        # 默认加载 docs/medical_kb.txt
+        docs = load_knowledge_base(KB_FILE_PATH)
     insert_docs_to_es(_es, docs, _embedding)
+
     # 大模型
     _llm = init_llm()
 
@@ -38,13 +48,22 @@ def hybrid_search(query: str, top_n: int = 50) -> list:
         init_global_components()
 
     # 1. 检查缓存
-    is_hit, cached_answer = get_redis_cache(query, _embedding)
+    is_hit, cached_data = get_redis_cache(query, _embedding)
     if is_hit:
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        with open(os.path.join(OUTPUT_DIR, "report.txt"), 'w', encoding='utf-8') as out:
-            out.write(cached_answer)
-        print("🚀 跳过全部检索与评估流程，直接返回！\n")
-        return ["[来自缓存]"]
+        # 解析缓存数据
+        if isinstance(cached_data, dict) and 'docs' in cached_data and 'report' in cached_data:
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            with open(os.path.join(OUTPUT_DIR, "report.txt"), 'w', encoding='utf-8') as out:
+                out.write(cached_data['report'])
+            print("🚀 跳过全部检索与评估流程，直接返回！\n")
+            return cached_data['docs']
+        else:
+            # 兼容旧格式缓存
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            with open(os.path.join(OUTPUT_DIR, "report.txt"), 'w', encoding='utf-8') as out:
+                out.write(str(cached_data))
+            print("🚀 跳过全部检索与评估流程，直接返回！\n")
+            return ["[来自缓存]"]
 
     # 2. Agent重试逻辑（最多3次）
     current_query = query
@@ -83,8 +102,9 @@ def hybrid_search(query: str, top_n: int = 50) -> list:
                     else:
                         out.write("\n".join(data))
             print(f"✅ {len(results)}个结果文件已保存")
-            # 存入缓存
-            set_redis_cache(query, report, _embedding)
+            # 存入缓存（包含文档和报告）
+            cache_data = {'docs': final_docs[:5], 'report': report}
+            set_redis_cache(query, cache_data, _embedding)
             print("💾 已将本次结果存入 Redis 缓存")
             return final_docs[:5]
 
