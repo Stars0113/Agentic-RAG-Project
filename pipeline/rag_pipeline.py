@@ -13,6 +13,7 @@ from utils.cache_utils import get_redis_cache, set_redis_cache
 from utils.filter_utils import l0_filter, l1_emb_filter, l2_nli_eval
 from utils.eval_utils import generate_ragas_report
 
+
 # 初始化全局组件（仅初始化一次）
 _es = None
 _embedding = None
