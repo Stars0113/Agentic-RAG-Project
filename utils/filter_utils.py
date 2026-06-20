@@ -34,18 +34,28 @@ def l1_emb_filter(query, docs, embedding_model):
 def l2_nli_eval(query, docs, llm):
     valid = []
     for doc in docs:
-        prompt = f"""
-        问题：{query}
-        内容：{doc}
-        请判断内容是否能回答问题，仅输出JSON：
-        {{"relevant":true/false,"confidence":0.8,"reason":"..."}}
-        """
+        prompt = f"""请判断以下内容是否能回答用户的问题。
+
+用户问题：{query}
+
+候选内容：{doc}
+
+请严格按以下JSON格式输出，不要输出任何其他内容：
+{{"relevant": true或false, "confidence": 0.0到1.0之间的数字, "reason": "一句话说明原因"}}"""
         res = llm.invoke(prompt)
+        #  robust JSON解析：从返回文本中提取JSON
         try:
-            j = json.loads(res)
-            if j["relevant"] and j["confidence"] >= L2_CONFIDENCE_THRESHOLD:
+            import re
+            match = re.search(r'\{[^{}]*"relevant"[^{}]*\}', res, re.DOTALL)
+            if match:
+                j = json.loads(match.group())
+            else:
+                j = json.loads(res)
+            if j.get("relevant") and j.get("confidence", 0) >= L2_CONFIDENCE_THRESHOLD:
                 valid.append(doc)
-        except:
-            continue
-    print(f"✅ L2评估完成：合格{len(valid)}条")
+        except Exception as e:
+            # 解析失败，打印日志便于调试，默认保留（保守策略）
+            print(f"  ⚠️ L2解析失败，保留文档: {str(e)}")
+            valid.append(doc)
+    print(f"✅ L2评估完成：合格{len(valid)}条 / 共{len(docs)}条")
     return valid

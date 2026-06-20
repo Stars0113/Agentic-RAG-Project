@@ -26,8 +26,8 @@ def init_rerank_model():
     global _tokenizer, _rerank_model
     if _tokenizer is None or _rerank_model is None:
         print("加载重排序模型 bge-reranker-large...")
-        _tokenizer = AutoTokenizer.from_pretrained(RERANK_MODEL_PATH)
-        _rerank_model = AutoModelForSequenceClassification.from_pretrained(RERANK_MODEL_PATH)
+        _tokenizer = AutoTokenizer.from_pretrained(RERANK_MODEL_PATH, local_files_only=True)
+        _rerank_model = AutoModelForSequenceClassification.from_pretrained(RERANK_MODEL_PATH, local_files_only=True)
         _rerank_model.eval()
     return _tokenizer, _rerank_model
 

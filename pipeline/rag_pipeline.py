@@ -24,8 +24,8 @@ def init_global_components(kb_file_path=None):
     """初始化全局组件，支持动态加载知识库文件"""
     global _es, _embedding, _llm
 
-    # 向量模型
-    _embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+    # 向量模型（使用本地缓存，避免联网检查失败）
+    _embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME, model_kwargs={"local_files_only": True})
 
     # ES
     _es = init_es_client()

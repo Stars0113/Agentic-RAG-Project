@@ -28,23 +28,25 @@ def init_es_client():
     return es
 
 
-def load_knowledge_base(file_path):
-    """使用 LangChain 加载并分块文档，替代 exec()"""
-    # 根据文件类型选择加载器
-    if file_path.endswith('.pdf'):
+def load_knowledge_base(file_path=None):
+    """加载知识库文件，支持纯文本格式（每行一条）和PDF"""
+    if file_path is None:
+        file_path = KB_FILE_PATH
+
+    # 纯文本格式：每行一条知识
+    if file_path.endswith('.txt'):
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        # 每条作为一个chunk，不做额外切分
+        return [{"text": line} for line in lines]
+
+    # PDF格式
+    elif file_path.endswith('.pdf'):
         loader = PyPDFLoader(file_path)
-    else:
-        loader = TextLoader(file_path, encoding='utf-8')
-
-    # 加载文档
-    docs = loader.load()
-
-    # 自动分块（每块 500 字符，重叠 50 字符）
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    chunks = splitter.split_documents(docs)
-
-    # 转换成原来需要的格式：[{"text": chunk}]
-    return [{"text": chunk.page_content} for chunk in chunks]
+        docs = loader.load()
+        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = splitter.split_documents(docs)
+        return [{"text": chunk.page_content} for chunk in chunks]
 
 def insert_docs_to_es(es, docs, embedding_model):
     """将文档+向量插入ES"""
